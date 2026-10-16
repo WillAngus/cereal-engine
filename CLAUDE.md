@@ -84,7 +84,7 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 
 ## Assets
 
-- **Images:** every file in `game/assets/img/` (including subfolders) becomes a global named after its file (`slayer/spr_snoop.png` becomes `spr_snoop`). `.gif` files load as animated GIFs. `assetAliases` in `LoadAssets.js` maps the few names that don't match their file.
+- **Images:** every file in `game/assets/img/` (including subfolders) becomes a global named after its file (`slayer/spr_snoop.png` becomes `spr_snoop`). `.gif` files load as animated GIFs. `assetAliases` in `LoadAssets.js` maps the few names that don't match their file. A file whose name isn't a valid identifier or is already a global (a browser built-in, library, or earlier `let`/`const`/`var`) is refused with a console error. Scripts loaded after `LoadAssets.js` can still take over an asset's name, so `checkAssetGlobals()` reports that at startup.
 - **Prescaling:** at startup, `spr_*` and `p_*` images larger than their limit in `spriteMaxSize` (game pixels × device pixel ratio) are replaced with smaller `ImageBitmap`s. Backgrounds (`bg_*`) are not scaled, because `bg_windows_bliss.src` is used as a CSS background.
 - **Sounds:** files in `game/assets/sound/sfx/` load into `audio.<name>`, and files in `game/assets/sound/music/` into `music.<name>`. Per-sound volumes are set in the `soundVolumes` table in `Sound.js`.
 - Prefix conventions: `spr_` sprites, `p_` particles and bullets, `bg_` backgrounds, `gif_` animations, `cur_` cursors, `mp3_`/`wav_` sounds.
