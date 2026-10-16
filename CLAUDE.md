@@ -29,21 +29,21 @@ Most gameplay is set up in the level file (`WindowsDefender.js`, mirrored in `Sn
 - **Dash** (`playerDashEvent`, Space): multiplies the player's velocity and sets off a harmless emoji explosion straight away, then a damaging explosion where the dash ends. It recharges, shown on the player's dash bar.
 - **Enemies** (`createSnoopSpawner`): spawners on the top, left and right edges roll a weighted chance each tick. Snoop/Steve grunts (50%), a bigger, faster variant (25%), and an explosive Creeper (10%) whose death explosion damages other enemies. Spawn intervals shrink by 0.01 every frame down to a floor of 10, so difficulty ramps up over time.
 - **Boss** (`spawnAlert`): an "Alert" boss spawns from the top every ~500 ticks. It has 1000 HP, a rectangular hitbox and strong knockback, and changes sprite at 66% and 33% health (`sprite_dmg_enabled`).
-- **Powerups** (`dropPowerup`): a chance-based drop on enemy death (`g_powerup_drop_rate`) that despawns after a while. It gives a random temporary weapon for 5 seconds, +50 max health, or triggers trippy mode.
+- **Powerups** (`dropPowerup`): a chance-based drop on enemy death (`settings.powerupDropRate`) that despawns after a while. It gives a random temporary weapon for 5 seconds, +50 max health, or triggers trippy mode.
 - **Turrets** (`spawnTurret`, I): allied AI that follows the player at a random distance, has its own weapon inventory, and leads its shots using intercept aiming from the worker.
 - **Trippy mode** (Y or the joint powerup): 0.25× game speed, a wormhole GIF background, boosted saturation and screen shake. **Spooky mode** (U): grayscale and high contrast, and spawners produce tougher skulls instead of the normal enemies.
 - **Anti-camping**: after 500 frames without input, screen shake builds up and "stop camping" is shown.
-- **Global time scale** (`g_speed`): timers, spawners, GIF playback and movement all scale with it, so slow motion affects the whole game.
+- **Global time scale** (`settings.speed`): timers, spawners, GIF playback and movement all scale with it, so slow motion affects the whole game.
 
 Built but not active:
-- **A\* pathfinding** (easystar.js, `findEntityPath` in `Maths.js`, path following in `Enemy.update`) is disabled by `g_pathfinding_enabled = false`. Enemies home straight at the player.
+- **A\* pathfinding** (easystar.js, `findEntityPath` in `Maths.js`, path following in `Enemy.update`) is disabled by `settings.pathfindingEnabled = false`. Enemies home straight at the player.
 - **Gamepad** (`Controller.js`): d-pad, shoulder weapon switching and dash are bound, but analog movement is broken (see Known bugs).
 - **Enemy health bars**: `StatBar` supports them, but the `Enemy` constructor always sets `showHealthBar = false` and ignores its argument.
 
 ## Architecture
 
 ### No modules, everything is global
-Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Runtime settings are `g_*` globals in `game/Game.js` (`g_speed` for slow motion, `g_shake`, `g_scale`, `g_shadows_enabled`, `g_log_sprite_sizes`, etc).
+Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Runtime settings live in the `settings` object at the top of `game/Game.js` (`settings.speed` for slow motion, `settings.shake`, `settings.scale`, `settings.shadowsEnabled`, `settings.logSpriteSizes`, etc).
 
 The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: false`), which is used for `fs` in asset loading.
 
@@ -72,8 +72,8 @@ The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: f
 Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the level sends **one batched message** with every turret and candidate target (`updateTurretWorker()`). The worker picks the nearest target and calculates an intercept angle, and the level applies the results to `turret.aimAngle` by id. Only one request is in flight at a time.
 
 ### Rendering
-- Canvas 2D. Each level draws inside a `Camera` (`game/lib/camera.js`) used for screen shake and zoom, scaled by `g_scale`. In responsive mode, `g_scale` is the device pixel ratio, because the world grows with the window rather than stretching.
-- **Shadows** are generated on first use by `Entity.drawShadow()`, on the GPU (a `source-in` composite on a canvas capped at 512px). They are toggled with `g_shadows_enabled`.
+- Canvas 2D. Each level draws inside a `Camera` (`game/lib/camera.js`) used for screen shake and zoom, scaled by `settings.scale`. In responsive mode, `settings.scale` is the device pixel ratio, because the world grows with the window rather than stretching.
+- **Shadows** are generated on first use by `Entity.drawShadow()`, on the GPU (a `source-in` composite on a canvas capped at 512px). They are toggled with `settings.shadowsEnabled`.
 - Visual effects (trippy and spooky mode, pause dimming) are CSS filters on the canvas, driven by CSS variables on `:root` (`Game.setFilter`).
 - The pause menu and title bar are HTML styled with XP.css.
 
@@ -103,7 +103,7 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 
 ## Work in progress
 
-- **Sprite size tuning.** `g_log_sprite_sizes = true` (in `Game.js`) records the largest size each sprite is drawn at. Play a full session and press O. Use the verdicts to tune `spriteMaxSize` in `LoadAssets.js`, then turn logging off or remove it (the hooks are in `Entity.drawSprite`, `Particle.display` and `Gun.display`, plus the O keybind in `KeyBinds.js`).
+- **Sprite size tuning.** `settings.logSpriteSizes = true` (in `Game.js`) records the largest size each sprite is drawn at. Play a full session and press O. Use the verdicts to tune `spriteMaxSize` in `LoadAssets.js`, then turn logging off or remove it (the hooks are in `Entity.drawSprite`, `Particle.display` and `Gun.display`, plus the O keybind in `KeyBinds.js`).
 - **Electron 6 to 38 upgrade.** It boots and plays. `main.js` still has dead `remote` and `enableRemoteModule` code from the old version. The title-bar buttons work because `setup.js` requires the whole `electron` module.
 
 ## Known bugs
@@ -130,7 +130,7 @@ The performance roadmap, roughly in order:
 Code health:
 - Merge `WindowsDefender` and `SnoopSlayer` into one level class configured per theme.
 - Give entities unique ids (for example a global counter).
-- Move global `g_*` settings and input state into a settings or input object.
+- Move input state (`upPressed`, `mouseDown`, etc) into an input object.
 
 ## Conventions
 
