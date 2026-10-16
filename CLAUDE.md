@@ -21,6 +21,25 @@ timeout 20 ./node_modules/.bin/electron . --no-sandbox --enable-logging=stderr 2
 
 There are no automated tests. Use `node --check <file>` for syntax and the boot check above for runtime errors.
 
+## Gameplay
+
+Most gameplay is set up in the level file (`WindowsDefender.js`, mirrored in `SnoopSlayer.js`).
+
+- **Weapons** (`initializeWeapons`): a 4-slot `Inventory` (keys 1–4) holding the chicken, dorito, banana and Dew guns. Each `Gun` sets its own projectile count, speed, spread (`dither`), damage, fire rate and hit sound. Guns with `explosive = true` fire bullets that explode on hit, dealing area damage with screen shake and custom particles. `onEquip`/`onHolster` hooks run when a gun is switched to or away from (the Dew gun uses them to start and stop music).
+- **Dash** (`playerDashEvent`, Space): multiplies the player's velocity and sets off a harmless emoji explosion straight away, then a damaging explosion where the dash ends. It recharges, shown on the player's dash bar.
+- **Enemies** (`createSnoopSpawner`): spawners on the top, left and right edges roll a weighted chance each tick. Snoop/Steve grunts (50%), a bigger, faster variant (25%), and an explosive Creeper (10%) whose death explosion damages other enemies. Spawn intervals shrink by 0.01 every frame down to a floor of 10, so difficulty ramps up over time.
+- **Boss** (`spawnAlert`): an "Alert" boss spawns from the top every ~500 ticks. It has 1000 HP, a rectangular hitbox and strong knockback, and changes sprite at 66% and 33% health (`sprite_dmg_enabled`).
+- **Powerups** (`dropPowerup`): a chance-based drop on enemy death (`g_powerup_drop_rate`) that despawns after a while. It gives a random temporary weapon for 5 seconds, +50 max health, or triggers trippy mode.
+- **Turrets** (`spawnTurret`, I): allied AI that follows the player at a random distance, has its own weapon inventory, and leads its shots using intercept aiming from the worker.
+- **Trippy mode** (Y or the joint powerup): 0.25× game speed, a wormhole GIF background, boosted saturation and screen shake. **Spooky mode** (U): grayscale and high contrast, and spawners produce tougher skulls instead of the normal enemies.
+- **Anti-camping**: after 500 frames without input, screen shake builds up and "stop camping" is shown.
+- **Global time scale** (`g_speed`): timers, spawners, GIF playback and movement all scale with it, so slow motion affects the whole game.
+
+Built but not active:
+- **A\* pathfinding** (easystar.js, `findEntityPath` in `Maths.js`, path following in `Enemy.update`) is disabled by `g_pathfinding_enabled = false`. Enemies home straight at the player.
+- **Gamepad** (`Controller.js`): d-pad, shoulder weapon switching and dash are bound, but analog movement is broken (see Known bugs).
+- **Enemy health bars**: `StatBar` supports them, but the `Enemy` constructor always sets `showHealthBar = false` and ignores its argument.
+
 ## Architecture
 
 ### No modules, everything is global
