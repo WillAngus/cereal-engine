@@ -1,6 +1,6 @@
 # Cereal Engine
 
-A small 2D top-down shooter engine written in plain JavaScript, running in Electron. The current game built on it is a meme-themed arena shooter with two near-identical level variants: **Windows Defender** (the default) and **Snoop Slayer**. The player survives waves of enemies coming in from the screen edges, using an inventory of guns, a dash, powerups, and turrets they can spawn.
+A small 2D top-down shooter engine written in plain JavaScript, running in Electron. The current game built on it is a meme-themed arena shooter called **Windows Defender**. The player survives waves of enemies coming in from the screen edges, using an inventory of guns, a dash, powerups, and turrets they can spawn.
 
 The goal is for the game to handle **as many enemies and bullets on screen as possible**, so performance matters in every change.
 
@@ -23,7 +23,7 @@ There are no automated tests. Use `node --check <file>` for syntax and the boot 
 
 ## Gameplay
 
-Most gameplay is set up in the level file (`WindowsDefender.js`, mirrored in `SnoopSlayer.js`).
+Most gameplay is set up in the level file, `WindowsDefender.js`.
 
 - **Weapons** (`initializeWeapons`): a 4-slot `Inventory` (keys 1–4) holding the chicken, dorito, banana and Dew guns. Each `Gun` sets its own projectile count, speed, spread (`dither`), damage, fire rate and hit sound. Guns with `explosive = true` fire bullets that explode on hit, dealing area damage with screen shake and custom particles. `onEquip`/`onHolster` hooks run when a gun is switched to or away from (the Dew gun uses them to start and stop music).
 - **Dash** (`playerDashEvent`, Space): multiplies the player's velocity and sets off a harmless emoji explosion straight away, then a damaging explosion where the dash ends. It recharges, shown on the player's dash bar.
@@ -78,7 +78,8 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 - The pause menu and title bar are HTML styled with XP.css.
 
 ### Levels (`game/states/levels/`)
-- `WindowsDefender.js` and `SnoopSlayer.js` are ~600-line near-duplicates. They differ only in the player and enemy sprites and the enemy sizes. **Any change to one usually needs making in the other.**
+- `WindowsDefender.js` is the main level.
+- `custom/SnoopSlayer.js` is an archived near-copy of `WindowsDefender` with different sprites and enemy sizes. It isn't loaded, so don't update it.
 - `DeathScreen01.js` restarts into `WindowsDefender`.
 - `old-before-EntityManager-refactor/` contains archived levels that aren't loaded.
 
@@ -128,7 +129,6 @@ The performance roadmap, roughly in order:
 6. **A stress-test key** plus a DevTools performance trace, to confirm where frame time actually goes before choosing between 3, 4 and 5.
 
 Code health:
-- Merge `WindowsDefender` and `SnoopSlayer` into one level class configured per theme.
 - Give entities unique ids (for example a global counter).
 - Move input state (`upPressed`, `mouseDown`, etc) into an input object.
 
