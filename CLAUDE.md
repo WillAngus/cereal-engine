@@ -72,7 +72,7 @@ The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: f
 Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the level sends **one batched message** with every turret and candidate target (`updateTurretWorker()`). The worker picks the nearest target and calculates an intercept angle, and the level applies the results to `turret.aimAngle` by id. Only one request is in flight at a time.
 
 ### Rendering
-- Canvas 2D. Each level draws inside a `Camera` (`game/lib/camera.js`) used for screen shake and zoom, scaled by `settings.scale`. In responsive mode, `settings.scale` is the device pixel ratio, because the world grows with the window rather than stretching.
+- Canvas 2D. Each level draws inside a `Camera` (`game/lib/camera.js`) used for screen shake and zoom, scaled by `settings.scale`. `Game.resize()` (on boot and window resize) fits a `baseWidth`×`baseHeight` (1280×720) area into the window. With `settings.responsive` (the default), the world (`width`/`height`) grows on the spare axis so nothing stretches or letterboxes; otherwise it stays 1280×720 and is letterboxed. Use `width`/`height` for world-space layout, never 1280/720 or the window size.
 - **Shadows** are generated on first use by `Entity.drawShadow()`, on the GPU (a `source-in` composite on a canvas capped at 512px). They are toggled with `settings.shadowsEnabled`.
 - Visual effects (trippy and spooky mode, pause dimming) are CSS filters on the canvas, driven by CSS variables on `:root` (`Game.setFilter`).
 - The pause menu and title bar are HTML styled with XP.css.
