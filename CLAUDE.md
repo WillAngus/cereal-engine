@@ -26,9 +26,9 @@ There are no automated tests. Use `node --check <file>` for syntax and the boot 
 Most gameplay is set up in the level file, `WindowsDefender.js`.
 
 - **Weapons** (`initializeWeapons`): a 4-slot `Inventory` (keys 1–4) holding the chicken, dorito, banana and Dew guns. Each `Gun` sets its own projectile count, speed, spread (`dither`), damage, fire rate and hit sound. Guns with `explosive = true` fire bullets that explode on hit, dealing area damage with screen shake and custom particles. `onEquip`/`onHolster` hooks run when a gun is switched to or away from (the Dew gun uses them to start and stop music).
-- **Dash** (`playerDashEvent`, Space): multiplies the player's velocity and sets off a harmless emoji explosion straight away, then a damaging explosion where the dash ends. It recharges, shown on the player's dash bar.
-- **Enemies** (`createSnoopSpawner`): spawners on the top, left and right edges roll a weighted chance each tick. Snoop/Steve grunts (50%), a bigger, faster variant (25%), and an explosive Creeper (10%) whose death explosion damages other enemies. Spawn intervals shrink by 0.01 every frame down to a floor of 10, so difficulty ramps up over time.
-- **Boss** (`spawnAlert`): an "Alert" boss spawns from the top every ~500 ticks. It has 1000 HP, a rectangular hitbox and strong knockback, and changes sprite at 66% and 33% health (`sprite_dmg_enabled`).
+- **Dash** (`dashEvent`, Space): multiplies the player's velocity and sets off a harmless emoji explosion straight away, then a damaging explosion where the dash ends. It recharges, shown on the player's dash bar.
+- **Enemies** (`spawnWave`): spawners on the top, left and right edges roll a weighted chance each tick. Snoop/Steve grunts (50%), a bigger, faster variant (25%), and an explosive Creeper (10%) whose death explosion damages other enemies. Spawn intervals shrink by 0.01 every frame down to a floor of 10 (`spawnRamp`/`minSpawnTime`), so difficulty ramps up over time.
+- **Boss** (`spawnAlert`): an "Alert" boss spawns from the top every ~500 ticks (`bossSpawner`, run in `tick()` so it doesn't ramp up). It has 1000 HP, a rectangular hitbox and strong knockback, and changes sprite at 66% and 33% health (`sprite_dmg_enabled`).
 - **Powerups** (`dropPowerup`): a chance-based drop on enemy death (`settings.powerupDropRate`) that despawns after a while. It gives a random temporary weapon for 5 seconds, +50 max health, or triggers trippy mode.
 - **Turrets** (`spawnTurret`, I): allied AI that follows the player at a random distance, has its own weapon inventory, and leads its shots using intercept aiming from the worker.
 - **Trippy mode** (Y or the joint powerup): 0.25× game speed, a wormhole GIF background, boosted saturation and screen shake. **Spooky mode** (U): grayscale and high contrast, and spawners produce tougher skulls instead of the normal enemies.
@@ -50,6 +50,7 @@ The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: f
 ### Boot and game loop
 - `main.js`: Electron main process. A frameless 1280x720 window that opens DevTools.
 - `setup.js`: the state machine (`StateStack`). States have `onEnter`, `onExit`, `onPause`, `onResume`, `update` and `display`.
+- State changes go through `Game.setState()` / `Game.restartState()`, which call `Game.exitState()`. It runs the state's `onExit`, then clears timers, unbinds the state's keys, resets input, unpauses, resets CSS filters, stops audio and resets `shake`/`speed`. **States bind keys with `Game.bind()`** (unbound automatically on exit). Session-wide dev keys use `Game.bindGlobal()` in `KeyBinds.js` and are restored if a state overrode them. A state's `onExit` only needs to clean up its own resources (workers, managers, globals it set).
 - `game/LoadAssets.js` and `game/Sound.js`: auto-load all assets (see below).
 - `game/Game.js`: when the Pace loading bar finishes, it runs `prescaleSprites()`, then `Game.init()` and `Game.run()`. The `requestAnimationFrame` loop computes `deltaTime` (1.0 = 60fps) and updates and draws the top state.
 
@@ -78,9 +79,11 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 - The pause menu and title bar are HTML styled with XP.css.
 
 ### Levels (`game/states/levels/`)
-- `WindowsDefender.js` is the main level.
+- `game/Level.js` is the base class for playable levels (`class MyLevel extends Level`). It handles the camera, managers, audio groups, screen shake, spawners, the death check, draw order, cursor, pause and default controls. A level overrides hooks (`setup`, `tick`, `drawWorld`, `drawHud`, `cleanup`, `dropPowerup`, `dashEvent`) and uses helpers (`spawnPlayer`, `addBackground`, `addSpawner`, `edgePoint`). The header comment lists the hooks and options.
+- `DeathScreen01(level)` restarts into the level class it's given (default `WindowsDefender`).
+- `WindowsDefender.js` is the main level, built on `Level`.
+- `LevelTemplate.js` is a minimal playable level built on `Level`, to copy when starting a new one (player, two guns, edge spawners, health powerup, dash explosion, HUD). It isn't loaded by `index.html`.
 - `custom/SnoopSlayer.js` is an archived near-copy of `WindowsDefender` with different sprites and enemy sizes. It isn't loaded, so don't update it.
-- `DeathScreen01.js` restarts into `WindowsDefender`.
 - `old-before-EntityManager-refactor/` contains archived levels that aren't loaded.
 
 ## Assets
