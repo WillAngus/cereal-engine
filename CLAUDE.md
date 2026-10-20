@@ -43,7 +43,7 @@ Built but not active:
 ## Architecture
 
 ### No modules, everything is global
-Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Runtime settings live in the `settings` object at the top of `game/Game.js` (`settings.speed` for slow motion, `settings.shake`, `settings.scale`, `settings.shadowsEnabled`, `settings.logSpriteSizes`, etc).
+Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Runtime settings live in the `settings` object at the top of `game/Game.js` (`settings.speed` for slow motion, `settings.shake`, `settings.scale`, `settings.pixelated` for nearest neighbour sprite scaling, `settings.shadowsEnabled`, `settings.logSpriteSizes`, etc).
 
 The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: false`), which is used for `fs` in asset loading.
 
