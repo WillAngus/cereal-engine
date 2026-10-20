@@ -11,7 +11,7 @@ npm install
 npm start        # electron . --no-sandbox
 ```
 
-`--no-sandbox` is needed on Linux because Electron's `chrome-sandbox` helper isn't set up as root (see Electron 38 notes below).
+`--no-sandbox` is needed on Linux because Electron's `chrome-sandbox` helper isn't set up as root.
 
 To check the game boots without errors and see its console output in the terminal (DevTools otherwise only shows it in the window):
 
@@ -108,7 +108,7 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 ## Work in progress
 
 - **Sprite size tuning.** `settings.logSpriteSizes = true` (in `Game.js`) records the largest size each sprite is drawn at. Play a full session and press O. Use the verdicts to tune `spriteMaxSize` in `LoadAssets.js`, then turn logging off or remove it (the hooks are in `Entity.drawSprite`, `Particle.display` and `Gun.display`, plus the O keybind in `KeyBinds.js`).
-- **Electron 6 to 38 upgrade.** It boots and plays. `main.js` still has dead `remote` and `enableRemoteModule` code from the old version. The title-bar buttons work because `setup.js` requires the whole `electron` module.
+- **Electron upgrade (6 to 38, now 44.9.1).** It boots and plays. `main.js` still has dead `remote` and `enableRemoteModule` code from the old version. The title-bar buttons work because `setup.js` requires the whole `electron` module. `preload.js` only contains leftover quick-start boilerplate that fills version elements the page doesn't have.
 
 ## Known bugs
 
