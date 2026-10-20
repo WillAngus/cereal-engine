@@ -44,7 +44,7 @@ Built but not active:
 
 ### Project layout
 - `main.js`, `preload.js`, `index.html`, `package.json`: the Electron app shell, at the root.
-- `engine/`: the reusable engine. `core/` (Game, Level, StateStack in `setup.js`, Timer), `entities/`, `weapons/` (Gun, Inventory), `systems/` (EntityManager, SpatialGrid, collision, particles, backgrounds, spawners), `input/` (gamepad, dev keys), `assets/` (image and sound loaders), `ui/` (StatBar, `styles.css`), `util/` (Vector, Maths), `workers/` (turret aiming) and `lib/` (third-party libraries).
+- `engine/`: the reusable engine. `core/` (Game, State, Level, StateStack in `setup.js`, Timer), `entities/`, `weapons/` (Gun, Inventory), `systems/` (EntityManager, SpatialGrid, collision, particles, backgrounds, spawners), `input/` (gamepad, dev keys), `assets/` (image and sound loaders), `ui/` (StatBar, `styles.css`), `util/` (Vector, Maths), `workers/` (turret aiming) and `lib/` (third-party libraries).
 - `game/`: Windows Defender. `levels/`, `states/` (DeathScreen01), `assets/`, and `config.js`.
 - `archive/`: old code that isn't loaded (SnoopSlayer, pre-EntityManager levels, `PowerupScripts.js`, `AudioAnalyser.js`). Don't update it.
 - **The engine must not name game classes.** Game-specific choices go in `game/config.js` (`Game.startLevel`, `Game.deathScreen`), which loads last. Engine classes still use some game sprites and sounds by name (see Improvement ideas).
@@ -56,7 +56,7 @@ The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: f
 
 ### Boot and game loop
 - `main.js`: Electron main process. A frameless 1280x720 window that opens DevTools.
-- `engine/core/setup.js`: the state machine (`StateStack`). States have `onEnter`, `onExit`, `onPause`, `onResume`, `update` and `display`.
+- `engine/core/setup.js`: the state machine (`StateStack`). Every state extends `State` (`engine/core/State.js`), which has empty `onEnter`, `onExit`, `onPause`, `onResume`, `update` and `display` hooks and a `loading` flag (the loop skips `update` while it's true). Levels extend `Level`, which extends `State`.
 - State changes go through `Game.setState()` / `Game.restartState()`, which call `Game.exitState()`. It runs the state's `onExit`, then clears timers, unbinds the state's keys, resets input, unpauses, resets CSS filters, stops audio and resets `shake`/`speed`. **States bind keys with `Game.bind()`** (unbound automatically on exit). Session-wide dev keys use `Game.bindGlobal()` in `engine/input/KeyBinds.js` and are restored if a state overrode them. A state's `onExit` only needs to clean up its own resources (workers, managers, globals it set).
 - `engine/assets/LoadAssets.js` and `engine/assets/Sound.js`: auto-load all assets (see below).
 - `engine/core/Game.js`: when the Pace loading bar finishes, it runs `prescaleSprites()`, then `Game.init()` (which starts `Game.startLevel`) and `Game.run()`. The `requestAnimationFrame` loop computes `deltaTime` (1.0 = 60fps) and updates and draws the top state.
