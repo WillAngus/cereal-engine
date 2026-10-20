@@ -42,19 +42,26 @@ Built but not active:
 
 ## Architecture
 
+### Project layout
+- `main.js`, `preload.js`, `index.html`, `package.json`: the Electron app shell, at the root.
+- `engine/`: the reusable engine. `core/` (Game, Level, StateStack in `setup.js`, Timer), `entities/`, `weapons/` (Gun, Inventory), `systems/` (EntityManager, SpatialGrid, collision, particles, backgrounds, spawners), `input/` (gamepad, dev keys), `assets/` (image and sound loaders), `ui/` (StatBar, `styles.css`), `util/` (Vector, Maths), `workers/` (turret aiming) and `lib/` (third-party libraries).
+- `game/`: Windows Defender. `levels/`, `states/` (DeathScreen01), `assets/`, and `config.js`.
+- `archive/`: old code that isn't loaded (SnoopSlayer, pre-EntityManager levels, `PowerupScripts.js`, `AudioAnalyser.js`). Don't update it.
+- **The engine must not name game classes.** Game-specific choices go in `game/config.js` (`Game.startLevel`, `Game.deathScreen`), which loads last. Engine classes still use some game sprites and sounds by name (see Improvement ideas).
+
 ### No modules, everything is global
-Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Runtime settings live in the `settings` object at the top of `game/Game.js` (`settings.speed` for slow motion, `settings.shake`, `settings.scale`, `settings.pixelated` for nearest neighbour sprite scaling, `settings.shadowsEnabled`, `settings.logSpriteSizes`, etc).
+Scripts are loaded in order by `<script>` tags in `index.html`. There is no bundler and no `import`/`export`. Classes, sprites (`spr_*`, `p_*`, `bg_*`, `gif_*`), sounds (`audio.*`, `music.*`) and managers (`entityManager`, `particleSystem`, `backgroundManager`, `player`) are globals. **When adding a file, add a script tag in the right place in `index.html`**: anything a file uses at load time must be loaded before it. Engine scripts go in the engine section, and game levels and states in the game section before `game/config.js`. Runtime settings live in the `settings` object at the top of `engine/core/Game.js` (`settings.speed` for slow motion, `settings.shake`, `settings.scale`, `settings.pixelated` for nearest neighbour sprite scaling, `settings.shadowsEnabled`, `settings.logSpriteSizes`, etc).
 
 The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: false`), which is used for `fs` in asset loading.
 
 ### Boot and game loop
 - `main.js`: Electron main process. A frameless 1280x720 window that opens DevTools.
-- `setup.js`: the state machine (`StateStack`). States have `onEnter`, `onExit`, `onPause`, `onResume`, `update` and `display`.
-- State changes go through `Game.setState()` / `Game.restartState()`, which call `Game.exitState()`. It runs the state's `onExit`, then clears timers, unbinds the state's keys, resets input, unpauses, resets CSS filters, stops audio and resets `shake`/`speed`. **States bind keys with `Game.bind()`** (unbound automatically on exit). Session-wide dev keys use `Game.bindGlobal()` in `KeyBinds.js` and are restored if a state overrode them. A state's `onExit` only needs to clean up its own resources (workers, managers, globals it set).
-- `game/LoadAssets.js` and `game/Sound.js`: auto-load all assets (see below).
-- `game/Game.js`: when the Pace loading bar finishes, it runs `prescaleSprites()`, then `Game.init()` and `Game.run()`. The `requestAnimationFrame` loop computes `deltaTime` (1.0 = 60fps) and updates and draws the top state.
+- `engine/core/setup.js`: the state machine (`StateStack`). States have `onEnter`, `onExit`, `onPause`, `onResume`, `update` and `display`.
+- State changes go through `Game.setState()` / `Game.restartState()`, which call `Game.exitState()`. It runs the state's `onExit`, then clears timers, unbinds the state's keys, resets input, unpauses, resets CSS filters, stops audio and resets `shake`/`speed`. **States bind keys with `Game.bind()`** (unbound automatically on exit). Session-wide dev keys use `Game.bindGlobal()` in `engine/input/KeyBinds.js` and are restored if a state overrode them. A state's `onExit` only needs to clean up its own resources (workers, managers, globals it set).
+- `engine/assets/LoadAssets.js` and `engine/assets/Sound.js`: auto-load all assets (see below).
+- `engine/core/Game.js`: when the Pace loading bar finishes, it runs `prescaleSprites()`, then `Game.init()` (which starts `Game.startLevel`) and `Game.run()`. The `requestAnimationFrame` loop computes `deltaTime` (1.0 = 60fps) and updates and draws the top state.
 
-### Entities (`game/`)
+### Entities (`engine/entities/`, `engine/weapons/`, `engine/systems/`)
 - `Entity`: position, velocity, sprite drawing with rotation and flip, shadows, collision.
   - `Creature` adds health, movement and smoothed rotation.
     - `Player`, `Enemy` and `Turret` extend it.
@@ -70,21 +77,20 @@ The renderer has full Node access (`nodeIntegration: true`, `contextIsolation: f
 - Query results are reused arrays. Don't hold onto them.
 
 ### Turrets
-Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the level sends **one batched message** with every turret and candidate target (`updateTurretWorker()`). The worker picks the nearest target and calculates an intercept angle, and the level applies the results to `turret.aimAngle` by id. Only one request is in flight at a time.
+Turret aiming is done in a Web Worker (`engine/workers/CalculateAngle.js`). Each frame the level sends **one batched message** with every turret and candidate target (`updateTurretWorker()`). The worker picks the nearest target and calculates an intercept angle, and the level applies the results to `turret.aimAngle` by id. Only one request is in flight at a time.
 
 ### Rendering
-- Canvas 2D. Each level draws inside a `Camera` (`game/lib/camera.js`) used for screen shake and zoom, scaled by `settings.scale`. `Game.resize()` (on boot and window resize) fits a `baseWidth`×`baseHeight` (1280×720) area into the window. With `settings.responsive` (the default), the world (`width`/`height`) grows on the spare axis so nothing stretches or letterboxes; otherwise it stays 1280×720 and is letterboxed. Use `width`/`height` for world-space layout, never 1280/720 or the window size.
+- Canvas 2D. Each level draws inside a `Camera` (`engine/lib/camera.js`) used for screen shake and zoom, scaled by `settings.scale`. `Game.resize()` (on boot and window resize) fits a `baseWidth`×`baseHeight` (1280×720) area into the window. With `settings.responsive` (the default), the world (`width`/`height`) grows on the spare axis so nothing stretches or letterboxes; otherwise it stays 1280×720 and is letterboxed. Use `width`/`height` for world-space layout, never 1280/720 or the window size.
 - **Shadows** are generated on first use by `Entity.drawShadow()`, on the GPU (a `source-in` composite on a canvas capped at 512px). They are toggled with `settings.shadowsEnabled`.
 - Visual effects (trippy and spooky mode, pause dimming) are CSS filters on the canvas, driven by CSS variables on `:root` (`Game.setFilter`).
 - The pause menu and title bar are HTML styled with XP.css.
 
-### Levels (`game/states/levels/`)
-- `game/Level.js` is the base class for playable levels (`class MyLevel extends Level`). It handles the camera, managers, audio groups, screen shake, spawners, the death check, draw order, cursor, pause and default controls. A level overrides hooks (`setup`, `tick`, `drawWorld`, `drawHud`, `cleanup`, `dropPowerup`, `dashEvent`) and uses helpers (`spawnPlayer`, `addBackground`, `addSpawner`, `edgePoint`). The header comment lists the hooks and options.
-- `DeathScreen01(level)` restarts into the level class it's given (default `WindowsDefender`).
-- `WindowsDefender.js` is the main level, built on `Level`.
+### Levels (`game/levels/`)
+- `engine/core/Level.js` is the base class for playable levels (`class MyLevel extends Level`). It handles the camera, managers, audio groups, screen shake, spawners, the death check, draw order, cursor, pause and default controls. A level overrides hooks (`setup`, `tick`, `drawWorld`, `drawHud`, `cleanup`, `dropPowerup`, `dashEvent`) and uses helpers (`spawnPlayer`, `addBackground`, `addSpawner`, `edgePoint`). The header comment lists the hooks and options.
+- `game/states/DeathScreen01(level)` restarts into the level class it's given (default `Game.startLevel`). `Level` uses `Game.deathScreen` unless a level sets its own `deathScreen`.
+- `WindowsDefender.js` is the main level, built on `Level`. `Reskin.js` is a pixel art variant.
 - `LevelTemplate.js` is a minimal playable level built on `Level`, to copy when starting a new one (player, two guns, edge spawners, health powerup, dash explosion, HUD). It isn't loaded by `index.html`.
-- `custom/SnoopSlayer.js` is an archived near-copy of `WindowsDefender` with different sprites and enemy sizes. It isn't loaded, so don't update it.
-- `old-before-EntityManager-refactor/` contains archived levels that aren't loaded.
+- `archive/SnoopSlayer.js` is a near-copy of an older `WindowsDefender` with different sprites and enemy sizes, and `archive/old-before-EntityManager-refactor/` has older levels. Neither is loaded, so don't update them.
 
 ## Assets
 
@@ -107,7 +113,7 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 
 ## Work in progress
 
-- **Sprite size tuning.** `settings.logSpriteSizes = true` (in `Game.js`) records the largest size each sprite is drawn at. Play a full session and press O. Use the verdicts to tune `spriteMaxSize` in `LoadAssets.js`, then turn logging off or remove it (the hooks are in `Entity.drawSprite`, `Particle.display` and `Gun.display`, plus the O keybind in `KeyBinds.js`).
+- **Sprite size tuning.** `settings.logSpriteSizes = true` (in `engine/core/Game.js`) records the largest size each sprite is drawn at. Play a full session and press O. Use the verdicts to tune `spriteMaxSize` in `LoadAssets.js`, then turn logging off or remove it (the hooks are in `Entity.drawSprite`, `Particle.display` and `Gun.display`, plus the O keybind in `KeyBinds.js`).
 - **Electron upgrade (6 to 38, now 44.9.1).** It boots and plays. `main.js` still has dead `remote` and `enableRemoteModule` code from the old version. The title-bar buttons work because `setup.js` requires the whole `electron` module. `preload.js` only contains leftover quick-start boilerplate that fills version elements the page doesn't have.
 
 ## Known bugs
@@ -118,7 +124,7 @@ Turret aiming is done in a Web Worker (`game/CalculateAngle.js`). Each frame the
 - Entity ids are built from `'enemy' + entities.length` and similar, so they **aren't unique** after removals. `getEntityById` and the turret id lookup can match the wrong entity.
 - The audio slider `onclick` is assigned twice in `Game.js`, so the first assignment is dead.
 - `BackgroundScreen` stores the return value of `timerManager.addTimer`, which is always `undefined`.
-- `PowerupScripts.js` is invalid JS and `AudioAnalyser.js` is unused. Neither is loaded.
+- `archive/PowerupScripts.js` is invalid JS and `archive/AudioAnalyser.js` is unused. Neither is loaded.
 - `darkenImage` and `contrastImage` in `Maths.js` are unused.
 
 ## Improvement ideas
@@ -134,6 +140,7 @@ The performance roadmap, roughly in order:
 Code health:
 - Give entities unique ids (for example a global counter).
 - Move input state (`upPressed`, `mouseDown`, etc) into an input object.
+- Stop engine classes using game assets by name: sounds in `Bullet`, `Turret`, `Player`, `Powerup` and `Enemy` (`mp3_vine_boom`, `mp3_hurt`, `mp3_pop`, `mp3_tnt`), sprites in `Enemy` and `Turret` (`p_plus_1`, `gif_tnt_exp`, `spr_dew_logo`), default particles in `Gun` and `Explosion`, `cur_pixel` in `Level`, and the startup background in `engine/ui/styles.css`. Make them properties with defaults a game can override.
 
 ## Conventions
 
